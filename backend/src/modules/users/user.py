@@ -67,6 +67,48 @@ def create_user():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
-
+    
+@app.route('/user/<int:user_id>', methods=['GET'])
+def get_user_by_id(user_id):
+    """
+    Get user details by ID.
+    """
+    try:
+        user = User.query.get(user_id)
+        if user:
+            return jsonify(user.to_dict()), 200
+        else:
+            return jsonify({'error': f'User with ID {user_id} not found'}), 404
+    except Exception as e:
+        return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
+    
+@app.route('/user/email/<string:email>', methods=['GET'])
+def get_user_by_email(email):
+    """
+    Get user details by email.
+    """
+    try:
+        user = User.query.filter_by(email=email).first()
+        if user:
+            return jsonify(user.to_dict()), 200
+        else:
+            return jsonify({'error': f'User with email {email} not found'}), 404
+    except Exception as e:
+        return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
+    
+@app.route('/user', methods=['GET'])
+def get_users():
+    """
+    Get all users in the database.
+    """
+    try:
+        users = User.query.all()
+        if users:
+            return jsonify([user.to_dict() for user in users]), 200
+        else:
+            return jsonify({'message': 'No users found'}), 404
+    except Exception as e:
+        return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
+    
 if __name__ == '__main__':
     app.run(debug=True)
