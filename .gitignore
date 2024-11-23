@@ -6,3 +6,6 @@ venv/
 
 /backend/src/files
 /backend/src/db
+
+/.*
+*.pyc
