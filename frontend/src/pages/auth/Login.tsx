@@ -41,7 +41,7 @@ const Login = () => {
       
       toast({
         title: "Successfully logged in!",
-        description: "Welcome back to SmartNote.",
+        description: "Welcome back to LessNotes.",
       });
       
       navigate("/");
