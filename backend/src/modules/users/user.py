@@ -15,6 +15,7 @@ class User(db.Model):  # Make User inherit from db.Model for SQLAlchemy compatib
 
     def to_dict(self):
         return {
+            'password': self.password,
             'id': self.id,
             'username': self.username,
             'email': self.email,
@@ -32,7 +33,7 @@ class User(db.Model):  # Make User inherit from db.Model for SQLAlchemy compatib
     def __eq__(self, other):
         return self.id == other.id
 
-@app.route('/users', methods=['POST'])
+@app.route('/signup', methods=['POST'])
 def create_user():
     try:
         data = request.get_json()
@@ -73,6 +74,18 @@ def create_user():
         db.session.rollback()
         return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
     
+@app.route('/login', methods=['POST'])
+def login_user():
+    data = request.get_json()
+    user = User.query.filter_by(email=data.get('emailOrUsername')).first()
+    if not user or user == None:
+        user = User.query.filter_by(username=data.get('emailOrUsername')).first()
+
+    if user and bcrypt.checkpw(data.get('password').encode('utf-8'), user.password.encode('utf-8')):
+        return jsonify({'message': 'Login successful'}), 200
+    else:
+        return jsonify({'error': 'Invalid email or password'}), 401
+
 @app.route('/users/<int:user_id>', methods=['GET'])
 def get_user_by_id(user_id):
     """
