@@ -14,6 +14,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
+import Axios from "axios";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -38,6 +39,11 @@ const Login = () => {
     try {
       // TODO: Implement actual login logic here
       console.log("Login attempt:", data);
+      const axiosClient = Axios.create({
+        baseURL: "http://127.0.0.1:5000",
+      });
+
+      const response = await axiosClient.post("/auth/login", data);
       
       toast({
         title: "Successfully logged in!",
