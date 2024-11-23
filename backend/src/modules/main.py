@@ -12,11 +12,11 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 global db
 db = SQLAlchemy(app)
 
-import users.user
+import users.user 
 
 # Initialize the database
 with app.app_context():
     db.create_all()
-
+    
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(port=8000, debug=True)

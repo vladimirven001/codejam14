@@ -9,7 +9,7 @@ import os
 
 def summarize_rag(query, documents):
     llm = ChatOllama(
-        model="llama3.1",
+        model="llama3.2",
         temperature=0,
     )
     prompt = """
