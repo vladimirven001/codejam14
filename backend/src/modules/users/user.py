@@ -1,7 +1,8 @@
-from flask import Flask, request, jsonify
-from flask_sqlalchemy import SQLAlchemy
+from flask import request, jsonify
+import bcrypt
 import os
 from __main__ import app, db
+from sqlalchemy.exc import IntegrityError
 
 class User(db.Model):  # Make User inherit from db.Model for SQLAlchemy compatibility
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -40,30 +41,34 @@ def create_user():
         if not data.get('username') or not data.get('email') or not data.get('password'):
             return jsonify({'error': 'Username, email, and password are required'}), 400
 
+        hashed_password = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
         # Create new user
         new_user = User(
             username=data['username'],
             email=data['email'],
-            password=data['password'],
+            password=hashed_password,
             profilePicture=data.get('profilePicture'),
             school=data.get('school'),
             major=data.get('major')
         )
 
-        # create a directory for the user
-        # can be used to store the profile picture and conversation history
-        os.makedirs(f"files/{new_user.id}/.lessnotes")
-
-
         db.session.add(new_user)
         db.session.commit()
 
+
+        # create a directory for the user
+        # can be used to store the profile picture and conversation history
+        os.makedirs(f"files/{new_user.id}/.lessnotes")
 
         return jsonify({
             'message': 'User created successfully',
             'user': new_user.to_dict()
         }), 201
 
+    except IntegrityError as e:
+        db.session.rollback()
+        return jsonify({'error': 'Username or email already exists'}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
