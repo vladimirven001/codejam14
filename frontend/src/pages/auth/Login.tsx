@@ -40,7 +40,7 @@ const Login = () => {
       // TODO: Implement actual login logic here
       console.log("Login attempt:", data);
       const axiosClient = Axios.create({
-        baseURL: "http://127.0.0.1:5000",
+        baseURL: "http://127.0.0.1:8000",
       });
 
       const response = await axiosClient.post("/login", data);
