@@ -1,0 +1,72 @@
+from flask import Flask, request, jsonify
+from flask_sqlalchemy import SQLAlchemy
+import os
+from __main__ import app, db
+
+class User(db.Model):  # Make User inherit from db.Model for SQLAlchemy compatibility
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(120), nullable=False)
+    profilePicture = db.Column(db.String(200), nullable=True)
+    school = db.Column(db.String(120), nullable=True)
+    major = db.Column(db.String(120), nullable=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+            'profilePicture': self.profilePicture,
+            'school': self.school,
+            'major': self.major
+        }
+    
+    def __str__(self):
+        return f"User(id={self.id}, username={self.username}, email={self.email}, profilePicture={self.profilePicture}, school={self.school}, major={self.major})"
+
+    def __repr__(self):
+        return str(self)
+    
+    def __eq__(self, other):
+        return self.id == other.id
+
+@app.route('/user', methods=['POST'])
+def create_user():
+    try:
+        data = request.get_json()
+
+        # Validate input
+        if not data.get('username') or not data.get('email') or not data.get('password'):
+            return jsonify({'error': 'Username, email, and password are required'}), 400
+
+        # Create new user
+        new_user = User(
+            username=data['username'],
+            email=data['email'],
+            password=data['password'],
+            profilePicture=data.get('profilePicture'),
+            school=data.get('school'),
+            major=data.get('major')
+        )
+
+        # create a directory for the user
+        # can be used to store the profile picture and conversation history
+        os.makedirs(f"files/{new_user.id}/.lessnotes")
+
+
+        db.session.add(new_user)
+        db.session.commit()
+
+
+        return jsonify({
+            'message': 'User created successfully',
+            'user': new_user.to_dict()
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True)

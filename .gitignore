@@ -6,3 +6,10 @@ venv/
 
 /backend/src/files
 /backend/src/db
+
+/frontend/node_modules
+
+**/__pycache__
+
+/.*
+*.pyc
