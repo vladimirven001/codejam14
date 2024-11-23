@@ -32,7 +32,7 @@ class User(db.Model):  # Make User inherit from db.Model for SQLAlchemy compatib
     def __eq__(self, other):
         return self.id == other.id
 
-@app.route('/user', methods=['POST'])
+@app.route('/users', methods=['POST'])
 def create_user():
     try:
         data = request.get_json()
@@ -73,7 +73,7 @@ def create_user():
         db.session.rollback()
         return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
     
-@app.route('/user/<int:user_id>', methods=['GET'])
+@app.route('/users/<int:user_id>', methods=['GET'])
 def get_user_by_id(user_id):
     """
     Get user details by ID.
@@ -87,7 +87,7 @@ def get_user_by_id(user_id):
     except Exception as e:
         return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
     
-@app.route('/user/email/<string:email>', methods=['GET'])
+@app.route('/users/email/<string:email>', methods=['GET'])
 def get_user_by_email(email):
     """
     Get user details by email.
@@ -101,7 +101,7 @@ def get_user_by_email(email):
     except Exception as e:
         return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
     
-@app.route('/user', methods=['GET'])
+@app.route('/users', methods=['GET'])
 def get_users():
     """
     Get all users in the database.
