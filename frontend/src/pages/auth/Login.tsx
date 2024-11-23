@@ -17,7 +17,7 @@ import { useToast } from "@/components/ui/use-toast";
 import Axios from "axios";
 
 const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  emailOrUsername: z.string().email("Please enter a valid email address or username"),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
@@ -30,7 +30,7 @@ const Login = () => {
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
+      emailOrUsername: "",
       password: "",
     },
   });
@@ -43,20 +43,26 @@ const Login = () => {
         baseURL: "http://127.0.0.1:5000",
       });
 
-      const response = await axiosClient.post("/auth/login", data);
+      const response = await axiosClient.post("/login", data);
       
       toast({
         title: "Successfully logged in!",
         description: "Welcome back to LessNotes.",
       });
-      
+
+      // Fetch the current user
+      const { password, ...currentUser } = response.data.user;
+
+      // Store current user in localStorage
+      localStorage.setItem("currentUser", JSON.stringify(currentUser));
+
       navigate("/");
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Login failed",
-        description: "Please check your credentials and try again.",
-      });
+        toast({
+          variant: "destructive",
+          title: "Login failed",
+          description: "Please check your credentials and try again.",
+        });
     }
   };
 
@@ -75,7 +81,7 @@ const Login = () => {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
-                name="email"
+                name="emailOrUsername"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email</FormLabel>
