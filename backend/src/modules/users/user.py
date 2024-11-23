@@ -128,5 +128,23 @@ def get_users():
     except Exception as e:
         return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
     
-if __name__ == '__main__':
-    app.run(debug=True)
+# Update user details by email and use a request body to reseive the new details
+@app.route('/users/<string:email>', methods=['PUT'])
+def update_user_by_email(email):
+    try:
+        data = request.get_json()
+        user = User.query.filter_by(email=email).first()
+        if user:
+            user.username = data.get('username', user.username)
+            user.email = data.get('email', user.email)
+            user.password = data.get('password', user.password)
+            user.profilePicture = data.get('profilePicture', user.profilePicture)
+            user.school = data.get('school', user.school)
+            user.major = data.get('major', user.major)
+            db.session.commit()
+            return jsonify({'message': 'User updated successfully', 'user': user.to_dict()}), 200
+        else:
+            return jsonify({'error': f'User with email {email} not found'}), 404
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
