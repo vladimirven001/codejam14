@@ -31,6 +31,10 @@ class User(db.Model):  # Make User inherit from db.Model for SQLAlchemy compatib
         return str(self)
     
     def __eq__(self, other):
+        if other == None:
+            return False
+        if not isinstance(other, User):
+            return False
         return self.id == other.id
 
 @app.route('/signup', methods=['POST'])
@@ -82,7 +86,10 @@ def login_user():
         user = User.query.filter_by(username=data.get('emailOrUsername')).first()
 
     if user and bcrypt.checkpw(data.get('password').encode('utf-8'), user.password.encode('utf-8')):
-        return jsonify({'message': 'Login successful'}), 200
+        return jsonify({
+            'message': 'User created successfully',
+            'user': user.to_dict()
+        }), 201
     else:
         return jsonify({'error': 'Invalid email or password'}), 401
 
