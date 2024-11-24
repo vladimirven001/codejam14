@@ -84,7 +84,6 @@ const Signup = () => {
 
   const onSubmit = async (data: SignupForm) => {
     try {
-      console.log("Form submitted:", data);
       const axiosClient = Axios.create({
         baseURL: "http://127.0.0.1:8000",
       });

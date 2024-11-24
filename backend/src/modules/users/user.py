@@ -6,7 +6,7 @@ from __main__ import app, db
 from sqlalchemy.exc import IntegrityError
 from werkzeug.utils import secure_filename
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+BASE_DIR = os.path.abspath("./")
 app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'files')
 
 class User(db.Model):  # Make User inherit from db.Model for SQLAlchemy compatibility
@@ -99,7 +99,7 @@ def create_user():
             db.session.commit()
 
         # Create .lessnotes directory
-        os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], str(new_user.id), '.lessnotes'), exist_ok=True)
+        os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], str(new_user.id), 'data'), exist_ok=True)
 
         return jsonify({
             'message': 'User created successfully',
