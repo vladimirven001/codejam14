@@ -163,11 +163,26 @@ const Chat = () => {
       };
   
       const response = await axiosClient.post('/answer', payload);
+      console.log("answer: " + response.data.answer);
+      let responseText = '';
+      try {
+        const jsonResponse = JSON.parse("{"+ response.data.answer + "}");
+        console.log(jsonResponse);
+        let sources = [];
+        for (const source of jsonResponse.sources) {
+          sources.push(source.split("data")[1])
+        }
+        console.log(sources);
+        responseText = jsonResponse.answer + "\n" + sources.join("\n");
+      } catch (error) {
+        console.log("Error parsing JSON response:", error);
+        responseText = response.data.answer;
+      }
   
       if (response.status === 200) {
         const aiResponse: Message = {
           id: (Date.now() + 1).toString(),
-          content: response.data.answer, // Use the answer from the backend
+          content: responseText, // Use the answer from the backend
           isUser: false,
         };
         setMessages((prev) => [...prev, aiResponse]);
@@ -179,7 +194,7 @@ const Chat = () => {
         const humanMessageResponse = await axiosClient.post(`/conversation/${conversationId}/messages`, humanPayload);
         const aiPayload = {
           conversationId: conversationId,
-          text: response.data.answer,
+          text: responseText,
           isHuman: false,
         }
         const aiMessageResponse = await axiosClient.post(`/conversation/${conversationId}/messages`, aiPayload);

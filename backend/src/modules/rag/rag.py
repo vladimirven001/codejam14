@@ -107,6 +107,7 @@ def main():
 
 @app.route('/process/<int:id>', methods=['POST'])
 def process(id):
+    print("processing documents")
     try:
         if id is None:
             return jsonify({'error': 'Id is required'}), 400

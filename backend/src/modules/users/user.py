@@ -278,26 +278,6 @@ def get_user_files(user_id):
 
     except Exception as e:
         return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
-    
-# @app.route('/users/<int:user_id>/uploadFiles', methods=['POST'])
-def uploadFiles(user_id):
-    try:
-        user = User.query.get(user_id)
-        if not user:
-            return jsonify({'error': f'User not found'}), 404
-
-        data = request.get_json()
-        
-        # base_path = os.path.normpath(os.path.join('./files', str(user_id)))
-
-        # if os.path.exists(os.path.join(base_path, 'data')):
-        #     shutil.rmtree(os.path.join(base_path, 'data'))  # Recursively delete the folder and its contents
-
-        # create_directory_structure(base_path, data)
-
-        return jsonify({'message': 'files uploaded'}), 200
-    except Exception as e:
-        return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
 
 @app.route('/users/<user_id>/uploadFiles', methods=['POST'])
 def upload_files(user_id):

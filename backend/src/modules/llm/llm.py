@@ -21,10 +21,12 @@ Use the following pieces of retrieved context to answer the question.
 If you don't know the answer, just say that you don't know.
 If the answer is not in the context, DO NOT answer the question.
 
-Provide your answer in this format:
-'Answer:
-Sources: [list of sources from the provided context]
-'
+Provide your answer in json using this format:
+
+"answer": answer,
+"sources": list of sources from the provided context
+
+
 The sources provided in the context are file paths, you can provide them as is.
 
 Question: {question} 
@@ -41,12 +43,12 @@ Use the following pieces of retrieved context to answer the question.
 If you don't know the answer, just say that you don't know.
 If the answer is not in the context, DO NOT answer the question.
 
-Provide your answer in this format:
-'Answer:
-Sources: [list of sources from the provided context]
-'
-The sources provided in the context are file paths, you can provide them as is.
+Provide your answer in json using this format:
 
+"answer": answer,
+"sources": list of sources from the provided context
+
+The sources provided in the context are file paths, you can provide them as is.
 Question: {question} 
 
 Context: {context} 
@@ -62,10 +64,11 @@ Use the following pieces of retrieved context to answer the question.
 If you don't know the answer, just say that you don't know.
 If the answer is not in the context, DO NOT answer the question.
 
-Provide your answer in this format:
-'Answer:
-Sources: [list of sources from the provided context]
-'
+Provide your answer in json using this format:
+
+"answer": answer,
+"sources": list of sources from the provided context
+
 The sources provided in the context are file paths, you can provide them as is.
 
 Question: {question} 
@@ -84,10 +87,11 @@ Use the following pieces of retrieved context to answer the question.
 If you don't know the answer, just say that you don't know.
 If the answer is not in the context, DO NOT answer the question.
 
-Provide your answer in this format:
-'Answer:
-Sources: [list of sources from the provided context]
-'
+Provide your answer in json using this format:
+
+"answer": answer,
+"sources": list of sources from the provided context
+
 The sources provided in the context are file paths, you can provide them as is.
 
 Question: {question} 
@@ -152,8 +156,7 @@ def answer_user_prompt():
         })
 
 
-def summarize_rag(user:User, query:str, documents:list[Document]):
-     # Select the appropriate base prompt
+def summarize_rag(user: User, query: str, documents: list[Document]):
     if user.username and user.school and user.major:
         prompt = BASE_PROMPT_WITH_NAME_AND_SCHOOL_AND_MAJOR
     elif user.username and user.school:
@@ -163,25 +166,33 @@ def summarize_rag(user:User, query:str, documents:list[Document]):
     else:
         prompt = BASE_PROMPT
 
-    # Prepare retrieved documents
     documents_str = json.dumps(listify_documents(documents))
 
-    # Format the final prompt
+    # Provide default values for missing fields
     formatted_prompt = prompt.format(
         question=query,
         context=documents_str,
-        user_name=user.username,
-        user_school=user.school,
-        user_major=user.major,
+        user_name=user.username or "User",
+        user_school=user.school or "Unknown School",
+        user_major=user.major or "Undeclared Major",
     )
 
     llm = ChatOllama(
         model="llama3.2",
         temperature=0,
     )
-    result = llm.invoke(formatted_prompt)
+    received_result = llm.invoke(formatted_prompt).content
+    try:
+        result = json.loads(received_result)
+        parsed_sources = [
+            source.split("data", 1)[1] for source in result.get("sources", [])
+        ]
+        result["sources"] = parsed_sources
+    except (json.JSONDecodeError, KeyError):
+        result = received_result  # Return raw result if JSON parsing fails
 
-    return result.content
+    return json.dumps(result) if isinstance(result, dict) else result
+
 
 def listify_documents(documents:list[Document]):
     result = {}
