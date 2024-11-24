@@ -16,4 +16,5 @@ python:
 
 llm:
 - install ollama from https://ollama.com/
-- run ```ollama run llama3.1``` in terminal
+- run ```ollama run llama3.2``` in terminal
+- run ```ollama pull mxbai-embed-large``` in terminal
