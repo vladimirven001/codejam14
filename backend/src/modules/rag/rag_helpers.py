@@ -4,7 +4,7 @@ import os
 
 from langchain_ollama import OllamaEmbeddings
 import time
-
+from langchain_community.vectorstores.utils import filter_complex_metadata
 from langchain_unstructured import UnstructuredLoader
 
 def vector_db(id):
@@ -36,7 +36,7 @@ def delete_documents_by_source(
     
     # Get all document IDs and their metadata
     docs = collection.get(
-        include=['metadatas', 'ids']
+        where={'source': path}
     )
     
     if not docs or not docs['ids']:
@@ -62,20 +62,25 @@ if __name__ == '__main__':
     # Add a file to the vector database
     vectorstore = vector_db(1)
     path = os.path.join(os.getcwd(), "files/1/data/messi.txt")
-    print(path)
+    
     # converth file to document
     loader = UnstructuredLoader([path])
     doc = loader.load()
-    print(doc)
-    vectorstore.add_documents(doc)
+    
+    doc = filter_complex_metadata(doc)
+    ids = vectorstore.add_documents(doc)
 
     time.sleep(2)
     collection = vectorstore._collection
     docs = collection.get(
-        include=['metadatas', 'ids']
+        include=['metadatas']
     )
-    print(docs)
+
     time.sleep(2)
 
-    delete_documents_by_source(vectorstore, "./files/1/data/messi.txt")
-    
+    delete_documents_by_source(vectorstore, path)
+
+    collection = vectorstore._collection
+    docs = collection.get(
+        include=['metadatas']
+    )

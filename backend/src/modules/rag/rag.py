@@ -123,19 +123,25 @@ def process(id):
                 file_paths.append(os.path.join(root, file))
 
         for file in file_paths:
-            file_object = create_file(file, id)
+            create_file(file, id)
 
         files = get_files_by_user_id(id)
 
         vectorstore = vector_db(id)
 
+        p_files = []
+
         for file in files:
             if not file.processed:
+                p_files.append(file)
                 delete_documents_by_source(vectorstore, file.path)
         
         # load -> split -> ingest
-        
-        return jsonify({'files': files}), 200
+        documents = load(base_path, loader='unstructured')
+        documents = split(documents)
+        ingest(documents)
+
+        return jsonify({'files': p_files}), 200
     except Exception as e:
         return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
     
