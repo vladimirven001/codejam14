@@ -72,7 +72,7 @@ Answer:
 
 
 @app.route('/answer', methods=['POST'])
-def answer_user_prompt(userId, prompt):
+def answer_user_prompt(userId, prompt, conversationId):
     user = get_user_by_id_controller(userId)
     if not user:
         raise Exception("User with id {} not found".format(userId))
