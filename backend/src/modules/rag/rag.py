@@ -104,8 +104,6 @@ def main():
     query = "why is the bohdi tree important"
     results = retrieve(1, query)
     print(results)
-    answer = summarize_rag(query, results)
-    print(answer)
 
 def process():
     pass
