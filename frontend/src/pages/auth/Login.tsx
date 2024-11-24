@@ -17,7 +17,7 @@ import { useToast } from "@/components/ui/use-toast";
 import Axios from "axios";
 
 const loginSchema = z.object({
-  emailOrUsername: z.string().email("Please enter a valid email address or username"),
+  emailOrUsername: z.string().min(1, "Please enter your email address or username"),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
@@ -37,7 +37,6 @@ const Login = () => {
 
   const onSubmit = async (data: LoginForm) => {
     try {
-      // TODO: Implement actual login logic here
       console.log("Login attempt:", data);
       const axiosClient = Axios.create({
         baseURL: "http://127.0.0.1:8000",
@@ -84,11 +83,11 @@ const Login = () => {
                 name="emailOrUsername"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>Email or Username</FormLabel>
                     <FormControl>
                       <Input
-                        type="email"
-                        placeholder="you@example.com"
+                        // type="email"
+                        placeholder="username (@email.com)"
                         {...field}
                       />
                     </FormControl>

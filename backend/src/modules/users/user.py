@@ -121,6 +121,20 @@ def get_user_by_email(email):
     except Exception as e:
         return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
     
+@app.route('/users/username/<string:username>', methods=['GET'])
+def get_user_by_username(username):
+    """
+    Get user details by username.
+    """
+    try:
+        user = User.query.filter_by(username=username).first()
+        if user:
+            return jsonify(user.to_dict()), 200
+        else:
+            return jsonify({'error': f'User with username {username} not found'}), 404
+    except Exception as e:
+        return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
+    
 @app.route('/users', methods=['GET'])
 def get_users():
     """
@@ -154,4 +168,45 @@ def update_user_by_email(email):
             return jsonify({'error': f'User with email {email} not found'}), 404
     except Exception as e:
         db.session.rollback()
+        return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
+
+@app.route('/files/<int:user_id>', methods=['GET'])
+def get_user_files(user_id):
+    """
+    Returns the folder containing files for the given user ID in a recursive structure.
+    """
+    try:
+        # Check if the user exists (assume User is a valid model with query)
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': f'User with ID {user_id} not found'}), 404
+
+        # Define the folder path
+        folder_path = f"files/{user_id}/data"
+        
+        # Check if the directory exists
+        if not os.path.exists(folder_path):
+            return jsonify({'error': f'No folder found for user with ID {user_id}'}), 404
+
+        # Recursive function to build the directory structure
+        def build_directory_structure(path):
+            if os.path.basename(path)[0] == '.':
+                return None
+            structure = {
+                "name": os.path.basename(path),
+                "files": [{"name": f} for f in os.listdir(path) if (os.path.isfile(os.path.join(path, f)) and f[0] != '.')],
+                "subdirectories": []
+            }
+            for subdir in os.listdir(path):
+                full_subdir_path = os.path.join(path, subdir)
+                if os.path.isdir(full_subdir_path):
+                    structure["subdirectories"].append(build_directory_structure(full_subdir_path))
+            return structure
+
+        # Build the directory structure starting from the root folder
+        directory_structure = build_directory_structure(folder_path)
+
+        return jsonify(directory_structure), 200
+
+    except Exception as e:
         return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
