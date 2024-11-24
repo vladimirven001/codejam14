@@ -4,6 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { FolderOpen, File, ChevronRight, ChevronDown, Folder, Minus } from "lucide-react";
 import { Button } from "./ui/button";
 import Axios from "axios";
+import AlertComponent from "./AlertComponent";
 
 interface Directory {
   id: string;
@@ -23,6 +24,8 @@ const FileExplorer = ({ open, onOpenChange }: FileExplorerProps) => {
   const [rootDirectory, setRootDirectory] = useState<Directory | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadingDots, setUploadingDots] = useState("");
   
   // Recursive function to map directory
   const mapDirectory = (dir: any): Directory => ({
@@ -292,9 +295,14 @@ const sendData = async () => {
     console.error("No directory data to send.");
     return;
   }
-
+  setIsUploading(true); 
   const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
   const userId = currentUser?.id;
+
+  // Start the animation loop
+  const interval = setInterval(() => {
+    setUploadingDots((prev) => (prev.length < 3 ? prev + "." : ""));
+  }, 500); 
 
   try {
     // Create a FormData object
@@ -339,7 +347,7 @@ const sendData = async () => {
     const response2 = await axiosClient.post(`/process/${userId}`, formData)
     const data2 = response2.data;
     console.log('Processing successful:', data2);
-
+    setIsUploading(false); 
   } catch (error) {
     console.error("Error sending directory", error.response.data);
   }
@@ -414,6 +422,7 @@ const sendData = async () => {
     </div>
   );
 
+  
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -441,7 +450,9 @@ const sendData = async () => {
             )}
           </ScrollArea>
         </div>
-        <Button onClick={sendData} className="text-lg">Confirm</Button>
+        <Button onClick={sendData} className="text-lg" disabled={isUploading}>
+          {isUploading ? `Uploading${uploadingDots}` : "Confirm"}
+        </Button>
       </DialogContent>
     </Dialog>
   );
