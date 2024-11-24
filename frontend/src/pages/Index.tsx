@@ -2,17 +2,45 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
+import { useState, useEffect } from "react";
 
 const Index = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  
-  // Temporary mock auth state - this should be replaced with actual auth
-  const isAuthenticated = false;
+
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+      const currentUser = localStorage.getItem("currentUser");
+      if (currentUser) {
+          try {
+              const user = JSON.parse(currentUser);
+              if (user && user.id && user.email) {
+                  setIsLoggedIn(true); // User is logged in
+              } else {
+                  setIsLoggedIn(false); // Invalid user data
+                  localStorage.removeItem("currentUser"); // Clean up invalid data
+              }
+          } catch (error) {
+              console.error("Error parsing user data:", error);
+              setIsLoggedIn(false);
+              localStorage.removeItem("currentUser");
+          }
+      } else {
+          setIsLoggedIn(false); // No user found
+      }
+  }, []); // Run this only once when the component mounts
+
+/*   // Optional: Redirect to login if not logged in
+  useEffect(() => {
+      if (!isLoggedIn) {
+          navigate("/auth/login");
+      }
+  }, [isLoggedIn, navigate]); */
 
   const handleAuthAction = () => {
-    if (isAuthenticated) {
-      navigate("/upload");
+    if (isLoggedIn) {
+      navigate("/chat");
     } else {
       navigate("/auth/signup");
       toast({
@@ -49,7 +77,7 @@ const Index = () => {
               className="hover-scale"
               onClick={handleAuthAction}
             >
-              {isAuthenticated ? "Upload Your Notes" : "Create Account"}
+              {isLoggedIn ? "Upload Your Notes" : "Create Account"}
             </Button>
           </div>
         </section>

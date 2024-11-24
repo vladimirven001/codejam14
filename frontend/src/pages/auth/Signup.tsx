@@ -15,8 +15,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
+import Axios from "axios";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useState } from "react";
+
+const MAX_FILE_SIZE = 5000000; // 5MB
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
 const signupSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Please enter a valid email address"),
   password: z
     .string()
@@ -26,6 +33,20 @@ const signupSchema = z.object({
       "Password must contain at least one uppercase letter, one lowercase letter, and one number"
     ),
   confirmPassword: z.string(),
+  school: z.string().min(1, "School is required"),
+  major: z.string().min(1, "Major is required"),
+  profilePicture: z
+    .instanceof(FileList)
+    .refine((files) => files?.length === 1, "Profile picture is required")
+    .refine(
+      (files) => files?.[0]?.size <= MAX_FILE_SIZE,
+      "Max file size is 5MB"
+    )
+    .refine(
+      (files) => ACCEPTED_IMAGE_TYPES.includes(files?.[0]?.type),
+      "Only .jpg, .jpeg, .png and .webp formats are supported"
+    )
+    .optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -36,20 +57,48 @@ type SignupForm = z.infer<typeof signupSchema>;
 const Signup = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+  const [previewUrl, setPreviewUrl] = useState<string>("")
+
   const form = useForm<SignupForm>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
+      username: "",
       email: "",
       password: "",
       confirmPassword: "",
+      school: "",
+      major: "",
     },
   });
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const onSubmit = async (data: SignupForm) => {
     try {
-      // TODO: Implement actual signup logic here
       console.log("Form submitted:", data);
+      const axiosClient = Axios.create({
+        baseURL: "http://127.0.0.1:8000",
+      });
+
+      const { confirmPassword, ...cleanedData } = data;
+      const formData = new FormData();
+      formData.append("profilePicture", cleanedData.profilePicture?.[0]);
+      formData.append("username", cleanedData.username);
+      formData.append("email", cleanedData.email);
+      formData.append("password", cleanedData.password);
+      formData.append("school", cleanedData.school);
+      formData.append("major", cleanedData.major);
+
+      const response = await axiosClient.post("/signup", formData);
       
       toast({
         title: "Account created successfully!",
@@ -57,7 +106,7 @@ const Signup = () => {
       });
       
       // Redirect to upload page after successful signup
-      navigate("/upload");
+      navigate("/auth/login");
     } catch (error) {
       toast({
         variant: "destructive",
@@ -80,6 +129,39 @@ const Signup = () => {
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <div className="flex justify-center mb-6">
+                <div className="space-y-2">
+                  <Avatar className="w-24 h-24">
+                    <AvatarImage src={previewUrl} />
+                    <AvatarFallback>Upload</AvatarFallback>
+                  </Avatar>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    className="w-full"
+                    onChange={handleImageChange}
+                    {...form.register("profilePicture")}
+                  />
+                  {form.formState.errors.profilePicture && (
+                    <p className="text-sm text-red-500">
+                      {form.formState.errors.profilePicture.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <FormField
+                control={form.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Username</FormLabel>
+                    <FormControl>
+                      <Input placeholder="your_username" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="email"
@@ -97,7 +179,38 @@ const Signup = () => {
                   </FormItem>
                 )}
               />
-
+              <FormField
+                control={form.control}
+                name="school"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>School</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter your school"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="major"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Major</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter your major"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="password"

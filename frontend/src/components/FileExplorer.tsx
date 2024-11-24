@@ -4,6 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { FolderOpen, File, ChevronRight, ChevronDown, Folder } from "lucide-react";
 import { Button } from "./ui/button";
 import Axios from "axios";
+import { number } from "zod";
 
 interface File {
   name: string;
@@ -90,13 +91,227 @@ const FileExplorer = ({ open, onOpenChange }: FileExplorerProps) => {
     setRootDirectory(updateDirectory(rootDirectory));
   };
 
+  const handleDropFile = (e: React.DragEvent, directoryId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+  
+    // Access the dropped files
+    const droppedFiles = Array.from(e.dataTransfer.files);
+  
+    // Map the files to the `File` interface structure
+    const newFiles: File[] = droppedFiles.map((file) => ({
+      name: file.name,
+      size: file.size,
+    }));
+  
+    // Update the root directory to add the files to the specified directory
+    if (!rootDirectory) return;
+  
+    const addFilesToDirectory = (dir: Directory): Directory => ({
+      ...dir,
+      files: dir.id === directoryId ? [...dir.files, ...newFiles] : dir.files,
+      subdirectories: dir.subdirectories.map(addFilesToDirectory),
+    });
+  
+    setRootDirectory(addFilesToDirectory(rootDirectory));
+  };
+
+  const handleDropFolder = (e: React.DragEvent, directioraryId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+  };
+  
+
+const detectType = (e: React.DragEvent, directoryId: string) => {
+  var items = [];
+  for (var i = 0; i < e.dataTransfer.items.length; i++) {
+      var item = e.dataTransfer.items[i];
+      if (item.kind !== "file") continue;
+      var entry = "getAsEntry" in DataTransferItem.prototype ? item.webkitGetAsEntry() : item.webkitGetAsEntry();
+      if (entry.isDirectory){       
+      console.log("this is a directory");
+      console.log(directoryId)
+      console.log(items[i])
+      var numberValue = 0; // will return 0 if its a directiorary
+      continue;}
+      else{
+        console.log("this is a file");
+        return 1; // will return 1 if its a file
+      }
+  }
+  return numberValue;
+};
+
+
+const detectTypeAndHandleFolder = async (e: React.DragEvent, directoryId: string) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  for (let i = 0; i < e.dataTransfer.items.length; i++) {
+    const item = e.dataTransfer.items[i];
+    if (item.kind !== "file") continue;
+
+    const entry =
+      "getAsEntry" in DataTransferItem.prototype
+        ? item.webkitGetAsEntry()
+        : item.webkitGetAsEntry();
+
+    if (!entry) continue;
+
+    if (entry.isDirectory) {
+      console.log("This is a directory:", entry.name);
+      console.log("Directory ID:", directoryId);
+
+      // Process the dropped folder and add it to the directory structure
+      await addFolderToStructure(entry as FileSystemDirectoryEntry, directoryId);
+    } else {
+      console.log("This is a file:", entry.name);
+    }
+  }
+};
+
+// Function to add the folder and its contents to the directory structure
+const addFolderToStructure = async (
+  folderEntry: FileSystemDirectoryEntry,
+  parentDirectoryId: string
+) => {
+  const reader = folderEntry.createReader();
+
+  const readEntries = (): Promise<FileSystemEntry[]> =>
+    new Promise((resolve, reject) => {
+      reader.readEntries(resolve, reject);
+    });
+
+  let entries: FileSystemEntry[];
+
+  // Prepare a new folder structure
+  const newFolder: Directory = {
+    id: `${parentDirectoryId}/${folderEntry.name}`,
+    name: folderEntry.name,
+    files: [],
+    subdirectories: [],
+    isExpanded: false,
+  };
+
+  try {
+    do {
+      entries = await readEntries();
+
+      for (const entry of entries) {
+        if (entry.isFile) {
+          // If it's a file, add it to the new folder's files
+          const fileEntry = entry as FileSystemFileEntry;
+          const file = await new Promise<File>((resolve, reject) =>
+            fileEntry.file(resolve, reject)
+          );
+          newFolder.files.push({ name: file.name, size: file.size });
+        } else if (entry.isDirectory) {
+          // If it's a subdirectory, process it recursively
+          const subFolder = await addFolderToStructure(
+            entry as FileSystemDirectoryEntry,
+            newFolder.id
+          );
+          newFolder.subdirectories.push(subFolder);
+        }
+      }
+    } while (entries.length > 0); // Continue until there are no more entries
+  } catch (error) {
+    console.error("Error reading directory:", error);
+  }
+
+  // Add the new folder to the directory structure
+  if (!rootDirectory) return;
+
+  const addFolderToDirectory = (dir: Directory): Directory => ({
+    ...dir,
+    subdirectories:
+      dir.id === parentDirectoryId
+        ? [...dir.subdirectories, newFolder]
+        : dir.subdirectories.map(addFolderToDirectory),
+  });
+
+  setRootDirectory(addFolderToDirectory(rootDirectory));
+
+  return newFolder; // Return the newly created folder for recursive use
+};
+
+
+// Recursively logs all files in a directory
+const logDirectoryContents = async (directoryEntry: FileSystemDirectoryEntry) => {
+  const reader = directoryEntry.createReader();
+
+  const readEntries = (): Promise<FileSystemEntry[]> =>
+    new Promise((resolve, reject) => {
+      reader.readEntries(resolve, reject);
+    });
+
+  let entries: FileSystemEntry[];
+  try {
+    do {
+      entries = await readEntries();
+
+      for (const entry of entries) {
+        if (entry.isFile) {
+          const fileEntry = entry as FileSystemFileEntry;
+          await logFile(fileEntry);
+        } else if (entry.isDirectory) {
+          console.log("Found subdirectory:", entry.name);
+          await logDirectoryContents(entry as FileSystemDirectoryEntry); // Recursively process subdirectories
+        }
+      }
+    } while (entries.length > 0); // Continue until there are no more entries
+  } catch (error) {
+    console.error("Error reading directory:", error);
+  }
+};
+
+// Logs a single file entry
+const logFile = async (fileEntry: FileSystemFileEntry) => {
+  return new Promise<void>((resolve, reject) => {
+    fileEntry.file(
+      (file) => {
+        console.log("File found:", file.name, `(${file.size} bytes)`);
+        resolve();
+      },
+      (error) => reject(error)
+    );
+  });
+};
+
   // Render directories recursively
   const renderDirectory = (directory: Directory, level = 0) => (
-    <div key={directory.id} className="space-y-1">
+    <div key={directory.id}
+    className="space-y-1"
+    >
       <div
-        className="flex items-center gap-2 p-2 hover:bg-accent rounded-md cursor-pointer"
-        style={{ paddingLeft: `${level * 16 + 8}px` }}
-        onClick={() => toggleDirectory(directory.id)}
+         className="flex items-center gap-2 p-2 hover:bg-accent rounded-md cursor-pointer"
+         style={{ paddingLeft: `${level * 16 + 8}px` }}
+         onClick={() => toggleDirectory(directory.id)}
+         onDragOver={(e) => {
+           e.preventDefault();
+           e.currentTarget.classList.add("bg-blue-100");
+         }}
+         onDragLeave={(e) => {
+           e.currentTarget.classList.remove("bg-blue-100");
+         }}
+         onDrop={(e) => {
+           e.preventDefault();
+           e.stopPropagation();
+           e.currentTarget.classList.remove("bg-blue-100");
+   
+           // Get the dropped items from the drag event
+            const items = e.dataTransfer.items;
+            const typeOfDraggedItem = detectType(e, directory.id);
+            if (typeOfDraggedItem == 0) {
+              console.log("we have a directoryyyyy");
+              detectTypeAndHandleFolder(e, directory.id);
+            }
+            else{
+              console.log("we have a fileeeee!");
+              handleDropFile(e, directory.id)
+            }
+         }}
       >
         <Button variant="ghost" size="icon" className="h-4 w-4 p-0">
           {directory.isExpanded ? (
@@ -127,6 +342,7 @@ const FileExplorer = ({ open, onOpenChange }: FileExplorerProps) => {
       )}
     </div>
   );
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
