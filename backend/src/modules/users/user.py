@@ -194,7 +194,7 @@ def get_user_files(user_id):
                 return None
             structure = {
                 "name": os.path.basename(path),
-                "files": [{"name": f} for f in os.listdir(path) if ( os.path.isfile(os.path.join(path, f) and f[0] != '.') )],
+                "files": [{"name": f} for f in os.listdir(path) if (os.path.isfile(os.path.join(path, f)) and f[0] != '.')],
                 "subdirectories": []
             }
             for subdir in os.listdir(path):
