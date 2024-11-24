@@ -6,13 +6,14 @@ app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Configure SQLite database
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///lessnotes.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 global db
 db = SQLAlchemy(app)
 
 import users.user 
+import rag.rag
 
 # Initialize the database
 with app.app_context():

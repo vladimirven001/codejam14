@@ -5,7 +5,10 @@ from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings
-
+from flask import request, jsonify
+from __main__ import app, db
+from files.file import File, create_file, get_files_by_user_id
+from rag_helpers import delete_documents_by_source, vector_db
 
 def load(path:str, loader:str='unstructured') -> list[Document]:
     """
@@ -96,8 +99,48 @@ def main():
     results = retrieve(query)
     print(results)
 
-def process():
-    pass
+@app.route('/process/<int:id>', methods=['POST'])
+def process(id):
+    try:
+        if id is None:
+            return jsonify({'error': 'Id is required'}), 400
+        
+        base_path = os.path.normpath(os.path.join('./files', str(id), 'data'))
 
-if __name__ == '__main__':
-    main()
+        file_paths = list()
+        for root, dirs, files in os.walk(base_path):
+            for file in files:
+                file_paths.append(os.path.join(root, file))
+
+        for file in file_paths:
+            file_object = create_file(file, id)
+
+        files = get_files_by_user_id(id)
+
+        vectorstore = vector_db(id)
+
+        for file in files:
+            if not file.processed:
+                delete_documents_by_source(vectorstore, file.path)
+        
+        # load -> split -> ingest
+        
+        return jsonify({'files': files}), 200
+    except Exception as e:
+        return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
+    
+@app.route('/files/<int:userId>', methods=['GET'])
+def get_files(userId):
+    try:
+        return jsonify(get_files_by_user_id(userId))
+    except Exception as e:
+        return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
+    
+# Get all files
+@app.route('/files', methods=['GET'])
+def get_all_files():
+    try:
+        files = File.query.all()
+        return jsonify([file.to_dict() for file in files])
+    except Exception as e:
+        return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
