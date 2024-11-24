@@ -36,6 +36,20 @@ class User(db.Model):  # Make User inherit from db.Model for SQLAlchemy compatib
         if not isinstance(other, User):
             return False
         return self.id == other.id
+    
+
+def get_user_by_id_controller(user_id):
+    """
+    Get user details by ID.
+    """
+    try:
+        user = User.query.get(user_id)
+        if user:
+            return user
+        else:
+            return None
+    except Exception as e:
+        return None
 
 @app.route('/signup', methods=['POST'])
 def create_user():
