@@ -5,14 +5,16 @@ from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings
-from flask import request, jsonify
-from __main__ import app
-from files.file import File, create_file, get_files_by_user_id, updateProcces
-from .rag_helpers import delete_documents_by_source, vector_db
-from langchain_community.chat_models import ChatOllama
 from langchain_community.vectorstores.utils import filter_complex_metadata
 
-def load(path:str, loader:str='unstructured') -> list[Document]:
+from flask import request, jsonify
+
+from __main__ import app
+
+from files.file import File, create_file, get_files_by_user_id, updateProcces, delete_documents_by_id
+from .rag_helpers import delete_documents_by_source, vector_db
+
+def load(file_paths:list[str], loader:str='unstructured') -> list[Document]:
     """
     Function that uses the UnstructuredLoader to load the files a given directory
 
@@ -24,16 +26,10 @@ def load(path:str, loader:str='unstructured') -> list[Document]:
         list[Document]: A list of Document objects
     """
     if loader == 'unstructured':
-        file_paths = list()
-        for root, dirs, files in os.walk(path):
-            for file in files:
-                if file[0] != '.':
-                    file_paths.append(os.path.join(root, file))
-        loader = UnstructuredLoader(
-            file_paths)
-    elif loader == 'directory':
-        # does not work if .txt files are in subdirectories
-        loader = DirectoryLoader(path)
+        loader = UnstructuredLoader(file_paths)
+    # elif loader == 'directory':
+    #     # does not work if .txt files are in subdirectories
+    #     loader = DirectoryLoader(path)
     return loader.load()
 
 def split(documents: list[Document]) -> list[Document]:
@@ -117,39 +113,41 @@ def process(id):
         
         base_path = os.path.normpath(os.path.join('./files', str(id), 'data'))
 
-        file_paths = list()
+        file_paths = set()
         for root, dirs, files in os.walk(base_path):
             for file in files:
-                file_paths.append(os.path.join(os.getcwd(), root, file))
+                file_paths.add(os.path.join(os.getcwd(), root, file))
 
         for file in file_paths:
-            print(file)
-            print("-----")
             create_file(file, id)
 
         files = get_files_by_user_id(id)
 
         vectorstore = vector_db(id)
 
-        p_files = []
-
+        files_to_be_processed = []
+        
         for file in files:
+            if file['path'] not in file_paths:
+                delete_documents_by_source(vectorstore, file['path'])   # delete from vector db
+                delete_documents_by_id(file['id'])                      # delete from table
             if not file['processed']:
-                print(file)
-                p_files.append(file)
+                files_to_be_processed.append(file)
                 delete_documents_by_source(vectorstore, file['path'])
         
         # load -> split -> ingest
-        documents = load(base_path, loader='unstructured')
-        documents = split(documents)
-        ingest(documents)
+        documents = load([file['path'] for file in files_to_be_processed], loader='unstructured')
+        if documents:
+            documents = split(documents)
+        if documents:
+            ingest(documents)
 
-        for file in p_files:
+        for file in files_to_be_processed:
             updateProcces(file['id'])
 
-        return jsonify({'files': p_files}), 200
+        return jsonify({'message': 'files processed'}), 200
     except Exception as e:
-        return jsonify({'error': 'An error occurred while deleting', 'details': str(e)}), 500
+        return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
     
 @app.route('/files/<int:userId>', methods=['GET'])
 def get_files(userId):

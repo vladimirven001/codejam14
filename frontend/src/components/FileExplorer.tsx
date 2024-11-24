@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FolderOpen, File, ChevronRight, ChevronDown, Folder } from "lucide-react";
+import { FolderOpen, File, ChevronRight, ChevronDown, Folder, Minus } from "lucide-react";
 import { Button } from "./ui/button";
 import Axios from "axios";
-import { number } from "zod";
 
 interface File {
   name: string;
@@ -279,60 +278,94 @@ const logFile = async (fileEntry: FileSystemFileEntry) => {
   });
 };
 
+// Function to delete the clicked file
+const deleteFile = (fileId: string) => {
+  if (!rootDirectory) return;
+
+  const removeFile = (dir: Directory): Directory => ({
+    ...dir,
+    files: dir.files.filter((file) => file.name !== fileId),
+    subdirectories: dir.subdirectories.map(removeFile),
+  });
+
+  setRootDirectory(removeFile(rootDirectory));
+}
+
+//Function to delete the clicked folder
+const deleteFolder = (folderId: string) => {
+  if (!rootDirectory) return;
+
+  const removeFolder = (dir: Directory): Directory => ({
+    ...dir,
+    subdirectories: dir.subdirectories.filter((subdir) => subdir.id !== folderId),
+  });
+
+  setRootDirectory(removeFolder(rootDirectory));
+}
+
   // Render directories recursively
   const renderDirectory = (directory: Directory, level = 0) => (
     <div key={directory.id}
     className="space-y-1"
     >
-      <div
-         className="flex items-center gap-2 p-2 hover:bg-accent rounded-md cursor-pointer"
-         style={{ paddingLeft: `${level * 16 + 8}px` }}
-         onClick={() => toggleDirectory(directory.id)}
-         onDragOver={(e) => {
-           e.preventDefault();
-           e.currentTarget.classList.add("bg-blue-100");
-         }}
-         onDragLeave={(e) => {
-           e.currentTarget.classList.remove("bg-blue-100");
-         }}
-         onDrop={(e) => {
-           e.preventDefault();
-           e.stopPropagation();
-           e.currentTarget.classList.remove("bg-blue-100");
-   
-           // Get the dropped items from the drag event
-            const items = e.dataTransfer.items;
-            const typeOfDraggedItem = detectType(e, directory.id);
-            if (typeOfDraggedItem == 0) {
-              console.log("we have a directoryyyyy");
-              detectTypeAndHandleFolder(e, directory.id);
-            }
-            else{
-              console.log("we have a fileeeee!");
-              handleDropFile(e, directory.id)
-            }
-         }}
-      >
-        <Button variant="ghost" size="icon" className="h-4 w-4 p-0">
-          {directory.isExpanded ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
-        </Button>
-        <Folder className="h-4 w-4" />
-        <span className="flex-grow">{directory.name}</span>
-      </div>
+        <div
+          className="flex items-center gap-2 p-2 hover:bg-accent rounded-md cursor-pointer"
+          style={{ paddingLeft: `${level * 16 + 8}px` }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.currentTarget.classList.add("bg-blue-100");
+            }}
+            onDragLeave={(e) => {
+              e.currentTarget.classList.remove("bg-blue-100");
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              e.currentTarget.classList.remove("bg-blue-100");
+              
+              // Get the dropped items from the drag event
+              const items = e.dataTransfer.items;
+              const typeOfDraggedItem = detectType(e, directory.id);
+              if (typeOfDraggedItem == 0) {
+                console.log("we have a directoryyyyy");
+                detectTypeAndHandleFolder(e, directory.id);
+              }
+              else{
+                console.log("we have a fileeeee!");
+                handleDropFile(e, directory.id)
+              }
+            }}
+            >
+          {/* <div className="items-center hover:bg-accent rounded-md cursor-pointer"> */}
+            <Button onClick={() => toggleDirectory(directory.id)} variant="ghost" size="icon" className="h-7 w-7 p-0 hover:bg-green rounded-md cursor-pointer">
+              {directory.isExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </Button>
+            <Folder onClick={() => toggleDirectory(directory.id)} className="h-4 w-4" />
+            <span onClick={() => toggleDirectory(directory.id)} className="flex-grow">{directory.name}</span>
+          {/* </div> */}
+          { directory.name == "data" ? null :
+            <Button onClick={() => deleteFolder(directory.name)} variant="destructive" size="icon" className="h-4 w-4 p-0 z-100">
+              <Minus className="h-4 w-4" />
+            </Button>
+          }
+        </div>
       {directory.isExpanded && (
         <>
           {directory.files.map((file, index) => (
             <div
               key={index}
-              className="flex items-center gap-2 p-2 hover:bg-accent rounded-md"
+              className="flex items-center gap-2 p-2 rounded-md"
               style={{ paddingLeft: `${(level + 1) * 16 + 8}px` }}
             >
               <File className="h-4 w-4" />
               <span className="flex-grow">{file.name}</span>
+              <Button onClick={() => deleteFile(file.name)} variant="destructive" size="icon" className="h-4 w-4 p-0">
+                <Minus className="h-4 w-4" />
+              </Button>
             </div>
           ))}
           {directory.subdirectories.map((subdir) =>
