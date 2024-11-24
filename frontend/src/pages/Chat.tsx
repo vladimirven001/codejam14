@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, User, LogOut } from "lucide-react";
-import { useState, useEffect } from "react";
 import FileExplorer from "@/components/FileExplorer";
 import Profile from "@/components/Profile";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
