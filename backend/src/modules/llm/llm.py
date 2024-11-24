@@ -1,6 +1,7 @@
 from langchain_community.chat_models import ChatOllama
 
 from __main__ import app
+from backend.src.modules.conversations.message import get_messages_by_conversation_id
 from users.user import get_user_by_id_controller
 from rag.rag import retrieve
 from users.user import User
@@ -70,27 +71,79 @@ Context: {context}
 Answer:
 """
 
+# Define a contextualizing system prompt for rephrasing questions
+BASE_PROMPT_WITH_CHAT_HISTORY = """
+Given a chat history and the latest user question, 
+which might reference context in the chat history, 
+formulate a standalone question that can be understood 
+without the chat history. Do NOT answer the question; 
+just reformulate it if needed, or return it as is.
+
+Chat history: {chat_history}
+
+Current Question: {question}
+"""
+
+
+
 
 @app.route('/answer', methods=['POST'])
 def answer_user_prompt(userId, prompt, conversationId):
+    messages = get_messages_by_conversation_id(conversationId)
+    chat_history = [
+            f"{'Human' if message.isHuman else 'AI'}: {message.text}" for message in messages
+        ]
+    
+    context_prompt = BASE_PROMPT_WITH_CHAT_HISTORY
+
+    if not chat_history:
+        chat_history_str = "No prior chat history available."
+    else:
+        chat_history_str = "\n".join(chat_history)  
+
+    formatted_prompt = context_prompt.format(
+        chat_history=chat_history_str,
+        question=prompt
+    )
+
     user = get_user_by_id_controller(userId)
     if not user:
         raise Exception("User with id {} not found".format(userId))
-    documents = retrieve(user.id, prompt)
-    return summarize_rag(user, prompt, documents)
+    
+    llm = ChatOllama(
+        model="llama3.2",
+        temperature=0,
+    )
+    response = llm.invoke(formatted_prompt)
+    contextualized_prompt = response.content
+    
+    documents = retrieve(user.id, contextualized_prompt)
+
+    return summarize_rag(user, contextualized_prompt, documents, chat_history)
 
 
-def summarize_rag(user:User, query:str, documents:list[Document]):
-    prompt = BASE_PROMPT
-    if user.name:
-        prompt = BASE_PROMPT_WITH_NAME
+def summarize_rag(user:User, query:str, documents:list[Document], chat_history:list[str]):
+     # Select the appropriate base prompt
+    prompt = BASE_PROMPT_WITH_CHAT_HISTORY
+    if user.name and user.school and user.major:
+        prompt = BASE_PROMPT_WITH_NAME_AND_SCHOOL_AND_MAJOR
     elif user.name and user.school:
         prompt = BASE_PROMPT_WITH_NAME_AND_SCHOOL
-    elif user.name and user.school and user.major:
-        prompt = BASE_PROMPT_WITH_NAME_AND_SCHOOL_AND_MAJOR
+    elif user.name:
+        prompt = BASE_PROMPT_WITH_NAME
 
-    documents = listify_documents(documents)
-    formatted_prompt = prompt.format(question=query, context="\n".join(documents), user_name=user.name, user_school=user.school, user_major=user.major)
+    # Prepare retrieved documents
+    documents_str = "\n".join(listify_documents(documents))
+
+    # Format the final prompt
+    formatted_prompt = prompt.format(
+        question=query,
+        context=documents_str,
+        user_name=user.username,
+        user_school=user.school,
+        user_major=user.major,
+    )
+
     llm = ChatOllama(
         model="llama3.2",
         temperature=0,
