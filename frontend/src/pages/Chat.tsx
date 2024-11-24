@@ -173,7 +173,7 @@ const Chat = () => {
           sources.push(source.split("data")[1])
         }
         console.log(sources);
-        responseText = jsonResponse.answer + "\n" + sources.join("\n");
+        responseText = jsonResponse.answer + "\n\n" + sources.join("\n");
       } catch (error) {
         console.log("Error parsing JSON response:", error);
         responseText = response.data.answer;
