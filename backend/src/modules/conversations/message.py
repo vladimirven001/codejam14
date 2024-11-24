@@ -1,4 +1,4 @@
-from flask import jsonify
+from flask import jsonify, request
 from __main__ import app, db
 from conversations.conversation import get_conversation_by_id
 
@@ -23,9 +23,21 @@ def get_messages_by_conversation_id(conversation_id):
     except Exception as e:
         return None
     
-@app.route('/conversation/<int:conversationId>/messages', methods=['POST'])
-def create_message(text, conversation_id, is_human):
+@app.route('/conversation/<int:conversation_id>/messages', methods=['GET'])
+def get_messages_by_conversation_id_frontend(conversation_id):
     try:
+        messages = get_messages_by_conversation_id(conversation_id)
+        return jsonify({
+            'messages': [message.to_dict() for message in messages]
+            }), 200
+    except Exception as e:
+        return jsonify({'error': 'An error occurred while getting messages', 'details': str(e)}), 500
+    
+@app.route('/conversation/<int:conversation_id>/messages', methods=['POST'])
+def create_message(conversation_id):
+    try:
+        text = request.json.get('text')
+        is_human = request.json.get('isHuman')
         # Validate input
         if not text or not conversation_id or is_human is None:
             return jsonify({'error': 'Text, conversationId, and isHuman are required'}), 400

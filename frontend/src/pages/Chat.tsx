@@ -43,6 +43,8 @@ const Chat = () => {
     navigate('/auth/login');
   };
 
+  
+
   useEffect(() => {
     // Get the profile picture URL from localStorage
     const user = localStorage.getItem('currentUser');
@@ -53,50 +55,60 @@ const Chat = () => {
     }
   } , []);
 
-    useEffect(() => {
-      if (profilePicture) {
-        // Get Profile Picture from server
-        const axiosClient = Axios.create({
-          baseURL: "http://127.0.0.1:8000",
-          responseType: 'arraybuffer', // Ensure we get the image as an array buffer
-        });
-  
-        console.log("Fetching Profile Picture:", profilePicture);
-  
-        const fetchProfilePicture = async () => {
-          try {
-            // const response = await axiosClient.get("/images/" + profilePicture, {
-            //   responseType: 'blob', // Ensure we get the image as a blob
-            // });
+  useEffect(() => {
+    if (profilePicture) {
+      // Get Profile Picture from server
+      const axiosClient = Axios.create({
+        baseURL: "http://127.0.0.1:8000",
+        responseType: 'arraybuffer', // Ensure we get the image as an array buffer
+      });
 
-            const response = await axiosClient.get("/images/" + profilePicture);
-            console.log("Response:", response);
+      console.log("Fetching Profile Picture:", profilePicture);
 
-            // Ensure the response is successful
-            if (response.status !== 200) {
-              throw new Error('Failed to fetch file');
-            }
+      const fetchProfilePicture = async () => {
+        try {
+          // const response = await axiosClient.get("/images/" + profilePicture, {
+          //   responseType: 'blob', // Ensure we get the image as a blob
+          // });
 
-            // Create blob from array buffer
-            const blob = new Blob([response.data], { type: 'image/jpeg' });
+          const response = await axiosClient.get("/images/" + profilePicture);
+          console.log("Response:", response);
 
-            // Create object URL from blob
-            const imageUrl = URL.createObjectURL(blob);
-            console.log("Successfully created image URL:", imageUrl);
-            setImageUrl(imageUrl);
-          } catch (error) {
-            console.error("Error fetching profile picture:", error);
+          // Ensure the response is successful
+          if (response.status !== 200) {
+            throw new Error('Failed to fetch file');
           }
-        };
-  
-        fetchProfilePicture(); // Call the async function to fetch the image
-      }
-    }, [profilePicture]); // Depend on profilePicture so it triggers when it changes
+
+          // Create blob from array buffer
+          const blob = new Blob([response.data], { type: 'image/jpeg' });
+
+          // Create object URL from blob
+          const imageUrl = URL.createObjectURL(blob);
+          console.log("Successfully created image URL:", imageUrl);
+          setImageUrl(imageUrl);
+        } catch (error) {
+          console.error("Error fetching profile picture:", error);
+        }
+      };
+
+      fetchProfilePicture(); // Call the async function to fetch the image
+    }
+  }, [profilePicture]); // Depend on profilePicture so it triggers when it changes
   
   const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
   const userId = currentUser?.id;
 
   useEffect(() => {
+    // Ensure a current conversation exists
+    const initializeConversation = async () => {
+      let currentConversation = localStorage.getItem("currentConversation");
+      if (!currentConversation) {
+        const newConversationId = await handleNewConversation();
+        currentConversation = newConversationId || null;
+      }
+      localStorage.setItem("currentConversation", currentConversation || "");
+    };
+
     const fetchChatHistory = async () => {
       try {
         const axiosClient = Axios.create({
@@ -109,6 +121,9 @@ const Chat = () => {
             id: conversation.id.toString(),
             title: new Date(conversation.time).toLocaleString(), // Convert time to readable string
           }));
+
+          formattedChatHistory.sort((a, b) => b.id.localeCompare(a.id));
+          
           setChatHistory(formattedChatHistory);
         } else if (response.status === 404) {
           console.log("No chat history found.");
@@ -126,27 +141,70 @@ const Chat = () => {
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
-
+  
     const userMessage: Message = {
       id: Date.now().toString(),
       content: input,
       isUser: true,
     };
-
+  
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
-
-    // TODO: Implement actual AI response logic
-    const aiResponse: Message = {
-      id: (Date.now() + 1).toString(),
-      content: "This is a placeholder response. AI integration coming soon!",
-      isUser: false,
-    };
-
-    setMessages((prev) => [...prev, aiResponse]);
+  
+    try {
+      const axiosClient = Axios.create({
+        baseURL: "http://127.0.0.1:8000",
+      });
+      const conversationId = localStorage.getItem("currentConversation");
+      const payload = {
+        userId: userId,
+        prompt: input,
+        conversationId: conversationId,
+      };
+  
+      const response = await axiosClient.post('/answer', payload);
+  
+      if (response.status === 200) {
+        const aiResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          content: response.data.answer, // Use the answer from the backend
+          isUser: false,
+        };
+        setMessages((prev) => [...prev, aiResponse]);
+        const humanPayload = {
+          conversationId: conversationId,
+          text: input,
+          isHuman: true,
+        }
+        const humanMessageResponse = await axiosClient.post(`/conversation/${conversationId}/messages`, humanPayload);
+        const aiPayload = {
+          conversationId: conversationId,
+          text: response.data.answer,
+          isHuman: false,
+        }
+        const aiMessageResponse = await axiosClient.post(`/conversation/${conversationId}/messages`, aiPayload);
+      } else {
+        console.error("Failed to get an AI response:", response.data);
+        const errorResponse: Message = {
+          id: (Date.now() + 2).toString(),
+          content: "Something went wrong. Please try again.",
+          isUser: false,
+        };
+        setMessages((prev) => [...prev, errorResponse]);
+      }
+    } catch (error) {
+      console.error("Error communicating with the backend:", error);
+      const errorResponse: Message = {
+        id: (Date.now() + 2).toString(),
+        content: "Unable to connect to the server. Please try again later.",
+        isUser: false,
+      };
+      setMessages((prev) => [...prev, errorResponse]);
+    }
   };
+  
 
-  const handleNewConversation = async () => {
+  const handleNewConversation = async (): Promise<string | null> => {
     try {
       const axiosClient = Axios.create({
         baseURL: "http://127.0.0.1:8000",
@@ -154,18 +212,49 @@ const Chat = () => {
       const response = await axiosClient.post(`/users/${userId}/conversations`);
       if (response.status === 201) {
         const newConversation = response.data.conversation;
-        setChatHistory((prev) => [
-          ...prev,
-          {
-            id: newConversation.id.toString(),
-            title: new Date(newConversation.time).toLocaleString(),
-          },
-        ]);
+        const newChat = {
+          id: newConversation.id.toString(),
+          title: new Date(newConversation.time).toLocaleString(),
+        };
+        setChatHistory((prev) => [newChat, ...prev]); // Add new conversation at the top
+        localStorage.setItem("currentConversation", newConversation.id.toString());
+        
+        // Call handleConversationClick to automatically select the new conversation
+        await handleConversationClick(newConversation.id.toString());
+  
+        return newConversation.id.toString();
       } else {
         console.error("Failed to create a new conversation:", response.data);
+        return null;
       }
     } catch (error) {
       console.error("Error creating a new conversation:", error);
+      return null;
+    }
+  };
+  
+
+  const handleConversationClick = async (conversationId: string) => {
+    try {
+      localStorage.setItem("currentConversation", conversationId);
+      const axiosClient = Axios.create({
+        baseURL: "http://127.0.0.1:8000",
+      });
+
+      const response = await axiosClient.get(`/conversation/${conversationId}/messages`);
+      if (response.status === 200) {
+        const fetchedMessages = response.data.messages.map((msg: any) => ({
+          id: msg.id.toString(),
+          content: msg.text,
+          isUser: msg.isHuman,
+        }));
+
+        setMessages(fetchedMessages);
+      } else {
+        console.error("Failed to fetch messages:", response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching messages:", error);
     }
   };
 
@@ -173,16 +262,6 @@ const Chat = () => {
     <div className="flex h-screen bg-background">
       {/* Left Sidebar */}
       <div className="w-64 border-r flex flex-col">
-        <div className="p-4 border-b">
-          <Button
-            variant="outline"
-            className="w-full flex items-center gap-2 mt-2"
-            onClick={() => setShowFileExplorer(true)}
-          >
-            <Plus className="h-4 w-4" />
-            Add Files
-          </Button>
-        </div>
         <div className="p-4">
           <h3 className="text-lg font-bold">Conversations</h3>
           <Button
@@ -192,7 +271,7 @@ const Chat = () => {
           >
             <Plus className="h-4 w-4" />
             New Conversation
-        </Button>
+          </Button>
         </div>
         <ScrollArea className="flex-grow">
           <div className="p-2 space-y-2">
@@ -201,6 +280,7 @@ const Chat = () => {
                 key={chat.id}
                 variant="ghost"
                 className="w-full justify-start text-sm font-normal"
+                onClick={() => handleConversationClick(chat.id)} // Attach click handler
               >
                 {chat.title}
               </Button>
@@ -213,7 +293,7 @@ const Chat = () => {
       <div className="flex-1 flex flex-col">
         {/* Top Bar */}
         <div className="h-16 border-b flex items-center justify-end px-4">
-        <DropdownMenu>
+          <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button 
                 variant="ghost" 

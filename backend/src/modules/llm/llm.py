@@ -1,10 +1,12 @@
 from langchain_community.chat_models import ChatOllama
+from flask import request, jsonify
 
 from __main__ import app
-from backend.src.modules.conversations.message import get_messages_by_conversation_id
+from conversations.message import get_messages_by_conversation_id
 from users.user import get_user_by_id_controller
 from rag.rag import retrieve
 from users.user import User
+import json
 
 from langchain_core.documents import Document
 
@@ -18,6 +20,8 @@ You are an assistant for question-answering tasks.
 Use the following pieces of retrieved context to answer the question. 
 If you don't know the answer, just say that you don't know.
 If the answer is not in the context, DO NOT answer the question.
+
+If your answer is based on a specific source, include the source in your answer, as well as the passage from where it came.
 
 Question: {question} 
 
@@ -33,6 +37,8 @@ Use the following pieces of retrieved context to answer the question.
 If you don't know the answer, just say that you don't know.
 If the answer is not in the context, DO NOT answer the question.
 
+If your answer is based on a specific source, include the source in your answer, as well as the passage from where it came.
+
 Question: {question} 
 
 Context: {context} 
@@ -47,6 +53,8 @@ You are assisting {user_name}, talk to them with this name.
 Use the following pieces of retrieved context to answer the question. 
 If you don't know the answer, just say that you don't know.
 If the answer is not in the context, DO NOT answer the question.
+
+If your answer is based on a specific source, include the source in your answer, as well as the passage from where it came.
 
 Question: {question} 
 
@@ -64,6 +72,8 @@ Use the following pieces of retrieved context to answer the question.
 If you don't know the answer, just say that you don't know.
 If the answer is not in the context, DO NOT answer the question.
 
+If your answer is based on a specific source, include the source in your answer, as well as the passage from where it came.
+
 Question: {question} 
 
 Context: {context} 
@@ -71,69 +81,74 @@ Context: {context}
 Answer:
 """
 
-# Define a contextualizing system prompt for rephrasing questions
 BASE_PROMPT_WITH_CHAT_HISTORY = """
 Given a chat history and the latest user question, 
 which might reference context in the chat history, 
 formulate a standalone question that can be understood 
 without the chat history. Do NOT answer the question; 
-just reformulate it if needed, or return it as is.
+just reformulate it if needed.
+Your answer should ONLY be the reformulated question encapsulated in quotes.
 
-Chat history: {chat_history}
+Chat history:\n {chat_history}
 
 Current Question: {question}
+
+Answer:
 """
 
-
-
-
 @app.route('/answer', methods=['POST'])
-def answer_user_prompt(userId, prompt, conversationId):
+def answer_user_prompt():
+    conversationId = request.json.get('conversationId')
+    userId = request.json.get('userId')
+    prompt = request.json.get('prompt')
+    if not conversationId or not userId or not prompt:
+        return jsonify({'error': 'ConversationId, userId, and prompt are required'}), 400
+    user = get_user_by_id_controller(userId)
+    if not user:
+        return jsonify({'error': 'User with id ' + userId + 'not found'}), 404
     messages = get_messages_by_conversation_id(conversationId)
     chat_history = [
             f"{'Human' if message.isHuman else 'AI'}: {message.text}" for message in messages
         ]
     
-    context_prompt = BASE_PROMPT_WITH_CHAT_HISTORY
-
     if not chat_history:
         chat_history_str = "No prior chat history available."
     else:
         chat_history_str = "\n".join(chat_history)  
 
-    formatted_prompt = context_prompt.format(
+    context_prompt = BASE_PROMPT_WITH_CHAT_HISTORY.format(
         chat_history=chat_history_str,
         question=prompt
     )
 
-    user = get_user_by_id_controller(userId)
-    if not user:
-        raise Exception("User with id {} not found".format(userId))
-    
     llm = ChatOllama(
         model="llama3.2",
         temperature=0,
     )
-    response = llm.invoke(formatted_prompt)
+    response = llm.invoke(context_prompt)
+    # print("reformulated answer", response.content)
     contextualized_prompt = response.content
     
     documents = retrieve(user.id, contextualized_prompt)
 
-    return summarize_rag(user, contextualized_prompt, documents, chat_history)
+    return jsonify({
+        "answer": summarize_rag(user, contextualized_prompt, documents)
+        })
 
 
-def summarize_rag(user:User, query:str, documents:list[Document], chat_history:list[str]):
+def summarize_rag(user:User, query:str, documents:list[Document]):
      # Select the appropriate base prompt
-    prompt = BASE_PROMPT_WITH_CHAT_HISTORY
-    if user.name and user.school and user.major:
+    if user.username and user.school and user.major:
         prompt = BASE_PROMPT_WITH_NAME_AND_SCHOOL_AND_MAJOR
-    elif user.name and user.school:
+    elif user.username and user.school:
         prompt = BASE_PROMPT_WITH_NAME_AND_SCHOOL
-    elif user.name:
+    elif user.username:
         prompt = BASE_PROMPT_WITH_NAME
+    else:
+        prompt = BASE_PROMPT
 
     # Prepare retrieved documents
-    documents_str = "\n".join(listify_documents(documents))
+    documents_str = json.dumps(listify_documents(documents))
 
     # Format the final prompt
     formatted_prompt = prompt.format(
@@ -153,7 +168,17 @@ def summarize_rag(user:User, query:str, documents:list[Document], chat_history:l
     return result.content
 
 def listify_documents(documents:list[Document]):
-    return [doc.content for doc in documents]
+    result = {}
+    for i in range(len(documents)):
+        doc = documents[i]
+        result[i] = {
+            "content": doc.page_content,
+            "source": doc.metadata.get("source", "Unknown")
+            }
+        
+    # print("found context:", result)
+    return result
+        
 
 if __name__ == "__main__":
     documents = [

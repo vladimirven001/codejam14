@@ -1,6 +1,7 @@
 from flask import jsonify
 from __main__ import app, db
 from users.user import get_user_by_id
+from datetime import datetime
 
 class Conversation(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -33,7 +34,8 @@ def create_conversation(user_id):
             return jsonify({'error': 'User not found'}), 404
 
         new_conversation = Conversation(
-            userId=user_id
+            userId=user_id,
+            time=datetime.now()
         )
         db.session.add(new_conversation)
         db.session.commit()
