@@ -52,15 +52,13 @@ const Index = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8">
+      <div className="absolute top-4 left-4 text-3xl font-bold text-primary">
+        lessnotes
+      </div>
       <div className="w-full max-w-6xl space-y-16">
         {/* Hero Section */}
         <section className="text-center space-y-6 fade-up">
           <div className="space-y-2">
-            <div className="inline-block">
-              <span className="px-3 py-1 text-sm font-medium bg-primary/10 text-primary rounded-full">
-                Beta Release
-              </span>
-            </div>
             <h1 className="text-4xl sm:text-6xl font-display font-bold tracking-tight">
               Your Class Notes,{" "}
               <span className="text-primary">Supercharged with AI</span>

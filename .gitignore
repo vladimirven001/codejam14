@@ -7,6 +7,7 @@ venv/
 /backend/src/files
 /backend/src/db
 /backend/src/instance
+/backend/src/modules/users/files
 
 /frontend/node_modules
 

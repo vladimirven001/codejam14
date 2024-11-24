@@ -21,7 +21,11 @@ Use the following pieces of retrieved context to answer the question.
 If you don't know the answer, just say that you don't know.
 If the answer is not in the context, DO NOT answer the question.
 
-If your answer is based on a specific source, include the source in your answer, as well as the passage from where it came.
+Provide your answer in this format:
+'Answer:
+Sources: [list of sources from the provided context]
+'
+The sources provided in the context are file paths, you can provide them as is.
 
 Question: {question} 
 
@@ -37,7 +41,11 @@ Use the following pieces of retrieved context to answer the question.
 If you don't know the answer, just say that you don't know.
 If the answer is not in the context, DO NOT answer the question.
 
-If your answer is based on a specific source, include the source in your answer, as well as the passage from where it came.
+Provide your answer in this format:
+'Answer:
+Sources: [list of sources from the provided context]
+'
+The sources provided in the context are file paths, you can provide them as is.
 
 Question: {question} 
 
@@ -54,7 +62,11 @@ Use the following pieces of retrieved context to answer the question.
 If you don't know the answer, just say that you don't know.
 If the answer is not in the context, DO NOT answer the question.
 
-If your answer is based on a specific source, include the source in your answer, as well as the passage from where it came.
+Provide your answer in this format:
+'Answer:
+Sources: [list of sources from the provided context]
+'
+The sources provided in the context are file paths, you can provide them as is.
 
 Question: {question} 
 
@@ -72,7 +84,11 @@ Use the following pieces of retrieved context to answer the question.
 If you don't know the answer, just say that you don't know.
 If the answer is not in the context, DO NOT answer the question.
 
-If your answer is based on a specific source, include the source in your answer, as well as the passage from where it came.
+Provide your answer in this format:
+'Answer:
+Sources: [list of sources from the provided context]
+'
+The sources provided in the context are file paths, you can provide them as is.
 
 Question: {question} 
 

@@ -239,7 +239,7 @@ const Signup = () => {
                 )}
               />
 
-              <Button type="submit" className="w-full">
+              <Button type="submit" className="w-full font-bold">
                 Create Account
               </Button>
             </form>
