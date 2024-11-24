@@ -1,8 +1,13 @@
-from flask import request, jsonify
+from flask import request, jsonify, send_from_directory, Flask
 import bcrypt
 import os
 from __main__ import app, db
 from sqlalchemy.exc import IntegrityError
+from werkzeug.utils import secure_filename
+
+
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'files')
 
 class User(db.Model):  # Make User inherit from db.Model for SQLAlchemy compatibility
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -54,43 +59,90 @@ def get_user_by_id_controller(user_id):
 @app.route('/signup', methods=['POST'])
 def create_user():
     try:
-        data = request.get_json()
-
+        data = request.form
+        profile_picture = request.files.get('profilePicture')
+        
         # Validate input
-        if not data.get('username') or not data.get('email') or not data.get('password'):
+        if not data['username'] or not data['email'] or not data['password']:
+            print("Error")
             return jsonify({'error': 'Username, email, and password are required'}), 400
 
-        hashed_password = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-
-        # Create new user
+        hashed_password = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')        
+        # Create new user first to get the ID
         new_user = User(
             username=data['username'],
             email=data['email'],
             password=hashed_password,
-            profilePicture=data.get('profilePicture'),
-            school=data.get('school'),
-            major=data.get('major')
+            profilePicture=None,  # We'll update this after saving the file
+            school=data['school'],
+            major=data['major']
         )
-
         db.session.add(new_user)
         db.session.commit()
 
+        # Handle profile picture upload
+        if profile_picture:
+            # Create user's profile picture directory
+            user_dir = os.path.join(app.config['UPLOAD_FOLDER'], str(new_user.id), 'profile_picture')
+            os.makedirs(user_dir, exist_ok=True)
+            
+            # Secure the filename
+            filename = secure_filename(profile_picture.filename)
+            
+            # Save the file
+            profile_picture_path = os.path.join(str(new_user.id), 'profile_picture', filename)
+            full_path = os.path.join(app.config['UPLOAD_FOLDER'], profile_picture_path)
+            profile_picture.save(full_path)
+            
+            # Update the user's profile picture path in the database
+            new_user.profilePicture = profile_picture_path
+            db.session.commit()
 
-        # create a directory for the user
-        # can be used to store the profile picture and conversation history
-        os.makedirs(f"files/{new_user.id}/.lessnotes")
+        # Create .lessnotes directory
+        os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], str(new_user.id), '.lessnotes'), exist_ok=True)
 
         return jsonify({
             'message': 'User created successfully',
             'user': new_user.to_dict()
         }), 201
 
-    except IntegrityError as e:
-        db.session.rollback()
-        return jsonify({'error': 'Username or email already exists'}), 400
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
+        return jsonify({'error': str(e)}), 500
+    
+@app.route('/images/<path:filename>', methods=['GET'])
+def get_image(filename):
+    try:
+        # Log the requested filename for debugging
+        print(f"Requested filename: {filename}")
+        
+        # The filename already contains the full path like "2/profile_picture/image.jpg"
+        # Split it to get the directory and actual filename
+        file_path = os.path.normpath(filename)
+        
+        # Prevent directory traversal
+        if file_path.startswith('..') or file_path.startswith('/'):
+            return "Invalid path", 400
+            
+        # Get the full directory path
+        directory = os.path.join(app.config['UPLOAD_FOLDER'], os.path.dirname(file_path))
+        filename = os.path.basename(file_path)
+        
+        # Log the full path for debugging
+        print(f"Looking for file in: {directory}")
+        print(f"Filename: {filename}")
+        
+        # Check if file exists
+        full_path = os.path.join(directory, filename)
+        if not os.path.exists(full_path):
+            print(f"File not found at: {full_path}")
+            return f"File not found: {filename}", 404
+            
+        return send_from_directory(directory, filename)
+    except Exception as e:
+        print(f"Error serving image: {str(e)}")
+        return f"Error: {str(e)}", 500
+   
     
 @app.route('/login', methods=['POST'])
 def login_user():
