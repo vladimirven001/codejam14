@@ -224,8 +224,10 @@ def update_user_by_email(email):
         if user:
             user.username = data.get('username', user.username)
             user.email = data.get('email', user.email)
-            user.password = data.get('password', user.password)
-            user.profilePicture = data.get('profilePicture', user.profilePicture)
+            print(user.email)
+            if data.get('password'):
+                hashed_password = bcrypt.hashpw(data.get('password').encode('utf-8'), bcrypt.gensalt())
+                user.password = hashed_password.decode('utf-8')  # Store as a string in the database
             user.school = data.get('school', user.school)
             user.major = data.get('major', user.major)
             db.session.commit()

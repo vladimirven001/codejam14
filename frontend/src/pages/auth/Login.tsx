@@ -37,7 +37,6 @@ const Login = () => {
 
   const onSubmit = async (data: LoginForm) => {
     try {
-      console.log("Login attempt:", data);
       const axiosClient = Axios.create({
         baseURL: "http://127.0.0.1:8000",
       });
