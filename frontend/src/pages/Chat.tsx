@@ -1,10 +1,20 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, User } from "lucide-react";
-import { useState } from "react";
+import { Plus, User, LogOut } from "lucide-react";
+import { useState, useEffect } from "react";
 import FileExplorer from "@/components/FileExplorer";
 import Profile from "@/components/Profile";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Axios from "axios";
+import { set } from "date-fns";
+import { useNavigate } from "react-router-dom";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Message {
   id: string;
@@ -27,6 +37,65 @@ const Chat = () => {
   const [showFileExplorer, setShowFileExplorer] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
 
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem('currentUser');
+    navigate('/auth/login');
+  };
+
+  useEffect(() => {
+    // Get the profile picture URL from localStorage
+    const user = localStorage.getItem('currentUser');
+    if (user) {
+      const userData = JSON.parse(user);
+      console.log("User Data:", userData);
+      setProfilePicture(userData.profilePicture);
+    }
+  } , []);
+
+    useEffect(() => {
+      if (profilePicture) {
+        // Get Profile Picture from server
+        const axiosClient = Axios.create({
+          baseURL: "http://127.0.0.1:8000",
+          responseType: 'arraybuffer', // Ensure we get the image as an array buffer
+        });
+  
+        console.log("Fetching Profile Picture:", profilePicture);
+  
+        const fetchProfilePicture = async () => {
+          try {
+            // const response = await axiosClient.get("/images/" + profilePicture, {
+            //   responseType: 'blob', // Ensure we get the image as a blob
+            // });
+
+            const response = await axiosClient.get("/images/" + profilePicture);
+            console.log("Response:", response);
+
+            // Ensure the response is successful
+            if (response.status !== 200) {
+              throw new Error('Failed to fetch file');
+            }
+
+            // Create blob from array buffer
+            const blob = new Blob([response.data], { type: 'image/jpeg' });
+
+            // Create object URL from blob
+            const imageUrl = URL.createObjectURL(blob);
+            console.log("Successfully created image URL:", imageUrl);
+            setImageUrl(imageUrl);
+          } catch (error) {
+            console.error("Error fetching profile picture:", error);
+          }
+        };
+  
+        fetchProfilePicture(); // Call the async function to fetch the image
+      }
+    }, [profilePicture]); // Depend on profilePicture so it triggers when it changes
+  
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -83,13 +152,31 @@ const Chat = () => {
       <div className="flex-1 flex flex-col">
         {/* Top Bar */}
         <div className="h-16 border-b flex items-center justify-end px-4">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => setShowProfile(!showProfile)}
-          >
-            <User className="h-5 w-5" />
-          </Button>
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="relative"
+              >
+                <Avatar>
+                  <AvatarImage src={imageUrl} />
+                  <AvatarFallback>
+                    <User className="h-5 w-5" />
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setShowProfile(!showProfile)}>
+                Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout} className="text-red-600">
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Content Area */}
