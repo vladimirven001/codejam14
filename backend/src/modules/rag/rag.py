@@ -143,7 +143,6 @@ def process(id):
             ingest(documents)
 
         for file in files_to_be_processed:
-            print(file)
             updateProcces(file['id'])
 
         return jsonify({'message': 'files processed'}), 200

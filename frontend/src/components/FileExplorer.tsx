@@ -18,11 +18,12 @@ interface FileExplorerProps {
   onOpenChange: (open: boolean) => void;
 }
 
+
 const FileExplorer = ({ open, onOpenChange }: FileExplorerProps) => {
   const [rootDirectory, setRootDirectory] = useState<Directory | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
+  
   // Recursive function to map directory
   const mapDirectory = (dir: any): Directory => ({
     id: dir.name,
@@ -219,10 +220,6 @@ const addFolderToStructure = async (
   return newFolder; // Return the newly created folder for recursive use
 };
 
-// fucntion that prints the root directory
-const printRootDirectory = () => {
-  console.log(rootDirectory);
-}
 // Recursively logs all files in a directory
 const logDirectoryContents = async (directoryEntry: FileSystemDirectoryEntry) => {
   const reader = directoryEntry.createReader();
@@ -282,11 +279,13 @@ const deleteFolder = (folderId: string) => {
 
   const removeFolder = (dir: Directory): Directory => ({
     ...dir,
-    subdirectories: dir.subdirectories.filter((subdir) => subdir.id !== folderId),
+    subdirectories: dir.subdirectories
+      .filter((subdir) => subdir.id !== folderId) // Remove the folder if it matches `folderId`
+      .map((subdir) => removeFolder(subdir)),    // Recurse into remaining subdirectories
   });
 
   setRootDirectory(removeFolder(rootDirectory));
-}
+};
 
 const sendData = async () => {
   if (!rootDirectory) {
@@ -377,7 +376,6 @@ const sendData = async () => {
               }
             }}
             >
-          {/* <div className="items-center hover:bg-accent rounded-md cursor-pointer"> */}
             <Button onClick={() => toggleDirectory(directory.id)} variant="ghost" size="icon" className="h-7 w-7 p-0 hover:bg-green rounded-md cursor-pointer">
               {directory.isExpanded ? (
                 <ChevronDown className="h-4 w-4" />
@@ -386,10 +384,9 @@ const sendData = async () => {
               )}
             </Button>
             <Folder onClick={() => toggleDirectory(directory.id)} className="h-4 w-4" />
-            <span onClick={() => toggleDirectory(directory.id)} className="flex-grow">{directory.name}</span>
-          {/* </div> */}
+            <span className="flex-grow">{directory.name}</span>
           { directory.name == "data" ? null :
-            <Button onClick={() => deleteFolder(directory.name)} variant="destructive" size="icon" className="h-4 w-4 p-0 z-100">
+            <Button onClick={() => deleteFolder(directory.id)} variant="destructive" size="icon" className="h-4 w-4 p-0 z-100">
               <Minus className="h-4 w-4" />
             </Button>
           }
