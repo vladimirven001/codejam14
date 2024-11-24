@@ -43,13 +43,17 @@ def create_file(file_path, user_id):
         file_hash = compute_hash(file_path)
 
         # Check if a file with the same hash and userId exists
-        existing_file = File.query.filter_by(hash=file_hash, userId=user_id).first()
+        existing_file = File.query.filter_by(userId=user_id, path=file_path).first()
 
         if existing_file:
-            # Update the existing file's attributes
-            existing_file.processed = False  # Reset 'processed' status if needed
-            db.session.commit()
-            return existing_file  # Return the updated file object
+            if file_hash != existing_file.hash:
+                # Update the existing file's attributes
+                existing_file.hash = file_hash
+                existing_file.processed = False  # Reset 'processed' status if needed
+                db.session.commit()
+                return existing_file  # Return the updated file object
+            else:
+                return existing_file
         else:
             # Create and add a new file
             new_file = File(
@@ -87,6 +91,22 @@ def updateProcces(id):
             file.processed = True
             db.session.commit()
             return file.to_dict()
+        else:
+            raise RuntimeError('File not found')
+    except IntegrityError as e:
+        db.session.rollback()
+        raise RuntimeError(f"Integrity error occurred: {e}")
+    except Exception as e:
+        db.session.rollback()
+        raise RuntimeError(f"An unexpected error occurred: {e}")
+    
+# delete document from table and vector db
+def delete_documents_by_id(id):
+    try:
+        file = File.query.get(id)
+        if file:
+            db.session.delete(file)
+            db.session.commit()
         else:
             raise RuntimeError('File not found')
     except IntegrityError as e:
