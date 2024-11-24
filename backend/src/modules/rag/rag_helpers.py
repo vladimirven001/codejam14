@@ -36,7 +36,7 @@ def delete_documents_by_source(
     
     # Get all document IDs and their metadata
     docs = collection.get(
-        where={'source': path}
+        where={'source': source_path}
     )
     
     if not docs or not docs['ids']:

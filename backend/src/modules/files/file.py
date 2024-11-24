@@ -80,3 +80,20 @@ def get_files_by_user_id(userId):
         db.session.rollback()
         raise RuntimeError(f"An unexpected error occurred: {e}")
     
+def updateProcces(id):
+    try:
+        file = File.query.get(id)
+        if file:
+            file.processed = True
+            db.session.commit()
+            return file.to_dict()
+        else:
+            raise RuntimeError('File not found')
+    except IntegrityError as e:
+        db.session.rollback()
+        raise RuntimeError(f"Integrity error occurred: {e}")
+    except Exception as e:
+        db.session.rollback()
+        raise RuntimeError(f"An unexpected error occurred: {e}")
+
+    

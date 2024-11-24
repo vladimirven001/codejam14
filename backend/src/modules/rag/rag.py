@@ -7,8 +7,8 @@ from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings
 from flask import request, jsonify
 from __main__ import app
-from files.file import File, create_file, get_files_by_user_id
-from rag_helpers import delete_documents_by_source, vector_db
+from files.file import File, create_file, get_files_by_user_id, updateProcces
+from .rag_helpers import delete_documents_by_source, vector_db
 from langchain_community.chat_models import ChatOllama
 from langchain_community.vectorstores.utils import filter_complex_metadata
 
@@ -120,9 +120,11 @@ def process(id):
         file_paths = list()
         for root, dirs, files in os.walk(base_path):
             for file in files:
-                file_paths.append(os.path.join(root, file))
+                file_paths.append(os.path.join(os.getcwd(), root, file))
 
         for file in file_paths:
+            print(file)
+            print("-----")
             create_file(file, id)
 
         files = get_files_by_user_id(id)
@@ -132,18 +134,22 @@ def process(id):
         p_files = []
 
         for file in files:
-            if not file.processed:
+            if not file['processed']:
+                print(file)
                 p_files.append(file)
-                delete_documents_by_source(vectorstore, file.path)
+                delete_documents_by_source(vectorstore, file['path'])
         
         # load -> split -> ingest
         documents = load(base_path, loader='unstructured')
         documents = split(documents)
         ingest(documents)
 
+        for file in p_files:
+            updateProcces(file['id'])
+
         return jsonify({'files': p_files}), 200
     except Exception as e:
-        return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
+        return jsonify({'error': 'An error occurred while deleting', 'details': str(e)}), 500
     
 @app.route('/files/<int:userId>', methods=['GET'])
 def get_files(userId):
@@ -151,8 +157,7 @@ def get_files(userId):
         return jsonify(get_files_by_user_id(userId))
     except Exception as e:
         return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
-    
-# Get all files
+   
 @app.route('/files', methods=['GET'])
 def get_all_files():
     try:
