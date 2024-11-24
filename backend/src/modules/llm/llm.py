@@ -1,7 +1,7 @@
 from langchain_community.chat_models import ChatOllama
 
 from __main__ import app
-from backend.src.modules.conversations.message import get_messages_by_conversation_id
+from conversations.message import get_messages_by_conversation_id
 from users.user import get_user_by_id_controller
 from rag.rag import retrieve
 from users.user import User

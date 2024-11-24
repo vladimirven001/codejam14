@@ -5,11 +5,6 @@ import { FolderOpen, File, ChevronRight, ChevronDown, Folder, Minus } from "luci
 import { Button } from "./ui/button";
 import Axios from "axios";
 
-interface File {
-  name: string;
-  size?: number; // Optional size for files if needed
-}
-
 interface Directory {
   id: string;
   name: string;
@@ -53,7 +48,6 @@ const FileExplorer = ({ open, onOpenChange }: FileExplorerProps) => {
 
       const response = await axiosClient.get(`/users/${userId}/files`);
       const data = response.data;
-      console.log(data);
 
       setRootDirectory(mapDirectory(data)); // Map the single root object
       setError(null);
@@ -95,17 +89,13 @@ const FileExplorer = ({ open, onOpenChange }: FileExplorerProps) => {
     e.stopPropagation();
   
     // Access the dropped files
+
     const droppedFiles = Array.from(e.dataTransfer.files);
-  
-    // Map the files to the `File` interface structure
-    const newFiles: File[] = droppedFiles.map((file) => ({
-      name: file.name,
-      size: file.size,
-    }));
   
     // Update the root directory to add the files to the specified directory
     if (!rootDirectory) return;
-  
+    
+    const newFiles = droppedFiles.filter(file => !file.name.startsWith("."));
     const addFilesToDirectory = (dir: Directory): Directory => ({
       ...dir,
       files: dir.id === directoryId ? [...dir.files, ...newFiles] : dir.files,
@@ -115,13 +105,6 @@ const FileExplorer = ({ open, onOpenChange }: FileExplorerProps) => {
     setRootDirectory(addFilesToDirectory(rootDirectory));
   };
 
-  const handleDropFolder = (e: React.DragEvent, directioraryId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-  };
-  
-
 const detectType = (e: React.DragEvent, directoryId: string) => {
   var items = [];
   for (var i = 0; i < e.dataTransfer.items.length; i++) {
@@ -129,13 +112,9 @@ const detectType = (e: React.DragEvent, directoryId: string) => {
       if (item.kind !== "file") continue;
       var entry = "getAsEntry" in DataTransferItem.prototype ? item.webkitGetAsEntry() : item.webkitGetAsEntry();
       if (entry.isDirectory){       
-      console.log("this is a directory");
-      console.log(directoryId)
-      console.log(items[i])
       var numberValue = 0; // will return 0 if its a directiorary
       continue;}
       else{
-        console.log("this is a file");
         return 1; // will return 1 if its a file
       }
   }
@@ -148,6 +127,9 @@ const detectTypeAndHandleFolder = async (e: React.DragEvent, directoryId: string
   e.stopPropagation();
 
   for (let i = 0; i < e.dataTransfer.items.length; i++) {
+    if (e.dataTransfer.items[i].webkitGetAsEntry().name.startsWith(".")) {
+      continue
+    }
     const item = e.dataTransfer.items[i];
     if (item.kind !== "file") continue;
 
@@ -159,14 +141,9 @@ const detectTypeAndHandleFolder = async (e: React.DragEvent, directoryId: string
     if (!entry) continue;
 
     if (entry.isDirectory) {
-      console.log("This is a directory:", entry.name);
-      console.log("Directory ID:", directoryId);
-
       // Process the dropped folder and add it to the directory structure
       await addFolderToStructure(entry as FileSystemDirectoryEntry, directoryId);
-    } else {
-      console.log("This is a file:", entry.name);
-    }
+    } 
   }
 };
 
@@ -200,13 +177,21 @@ const addFolderToStructure = async (
       for (const entry of entries) {
         if (entry.isFile) {
           // If it's a file, add it to the new folder's files
+          if (entry.name.startsWith(".")) {
+            continue;
+          }
           const fileEntry = entry as FileSystemFileEntry;
           const file = await new Promise<File>((resolve, reject) =>
             fileEntry.file(resolve, reject)
           );
-          newFolder.files.push({ name: file.name, size: file.size });
+
+          newFolder.files.push(file);
+
         } else if (entry.isDirectory) {
           // If it's a subdirectory, process it recursively
+          if (entry.name.startsWith(".")) {
+            continue;
+          }
           const subFolder = await addFolderToStructure(
             entry as FileSystemDirectoryEntry,
             newFolder.id
@@ -231,11 +216,13 @@ const addFolderToStructure = async (
   });
 
   setRootDirectory(addFolderToDirectory(rootDirectory));
-
   return newFolder; // Return the newly created folder for recursive use
 };
 
-
+// fucntion that prints the root directory
+const printRootDirectory = () => {
+  console.log(rootDirectory);
+}
 // Recursively logs all files in a directory
 const logDirectoryContents = async (directoryEntry: FileSystemDirectoryEntry) => {
   const reader = directoryEntry.createReader();
@@ -255,7 +242,6 @@ const logDirectoryContents = async (directoryEntry: FileSystemDirectoryEntry) =>
           const fileEntry = entry as FileSystemFileEntry;
           await logFile(fileEntry);
         } else if (entry.isDirectory) {
-          console.log("Found subdirectory:", entry.name);
           await logDirectoryContents(entry as FileSystemDirectoryEntry); // Recursively process subdirectories
         }
       }
@@ -270,7 +256,6 @@ const logFile = async (fileEntry: FileSystemFileEntry) => {
   return new Promise<void>((resolve, reject) => {
     fileEntry.file(
       (file) => {
-        console.log("File found:", file.name, `(${file.size} bytes)`);
         resolve();
       },
       (error) => reject(error)
@@ -303,6 +288,64 @@ const deleteFolder = (folderId: string) => {
   setRootDirectory(removeFolder(rootDirectory));
 }
 
+const sendData = async () => {
+  if (!rootDirectory) {
+    console.error("No directory data to send.");
+    return;
+  }
+
+  const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+  const userId = currentUser?.id;
+
+  try {
+    // Create a FormData object
+    const formData = new FormData();
+
+    // Serialize directory metadata (including file names, sizes, and paths)
+
+    // Append the files to the FormData object
+    rootDirectory.files.forEach(file => {
+      const filePath = `${file.name}`
+      formData.append('files', file, filePath);
+    });
+
+    // Iterate over subdirectories and append their files as well
+    const appendSubdirectoryFiles = (directory: Directory) => {
+      directory.subdirectories.forEach(subdir => {
+        subdir.files.forEach(file => {
+          const filePath = `${subdir.id}/${file.name}`.replace(/^data\//, '');
+          formData.append('files', file, filePath); // Append file with full path
+        });
+        appendSubdirectoryFiles(subdir); // Recursively process subdirectories
+      });
+    };
+    appendSubdirectoryFiles(rootDirectory);
+    
+    // Create axios instance
+    const axiosClient = Axios.create({
+      baseURL: "http://127.0.0.1:8000",  
+    });
+
+    // Send the FormData to the backend
+    const response = await axiosClient.post(`/users/${userId}/uploadFiles`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    // Handle response
+    const data = response.data;
+    console.log('Upload successful:', data);
+
+    const response2 = await axiosClient.post(`/process/${userId}`, formData)
+    const data2 = response2.data;
+    console.log('Processing successful:', data2);
+
+  } catch (error) {
+    console.error("Error sending directory", error.response.data);
+  }
+};
+
   // Render directories recursively
   const renderDirectory = (directory: Directory, level = 0) => (
     <div key={directory.id}
@@ -327,11 +370,9 @@ const deleteFolder = (folderId: string) => {
               const items = e.dataTransfer.items;
               const typeOfDraggedItem = detectType(e, directory.id);
               if (typeOfDraggedItem == 0) {
-                console.log("we have a directoryyyyy");
                 detectTypeAndHandleFolder(e, directory.id);
               }
               else{
-                console.log("we have a fileeeee!");
                 handleDropFile(e, directory.id)
               }
             }}
@@ -403,6 +444,8 @@ const deleteFolder = (folderId: string) => {
             )}
           </ScrollArea>
         </div>
+        <Button onClick={sendData} className="text-lg">Confirm</Button>
+        <Button onClick={printRootDirectory} className="text-lg">print</Button>
       </DialogContent>
     </Dialog>
   );

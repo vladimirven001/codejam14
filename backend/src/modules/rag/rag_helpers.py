@@ -40,7 +40,6 @@ def delete_documents_by_source(
     )
     
     if not docs or not docs['ids']:
-        print("No documents found in the collection.")
         return
     
     # Find documents with matching source
@@ -52,9 +51,6 @@ def delete_documents_by_source(
     # Delete the matching documents
     if ids_to_delete:
         collection.delete(ids_to_delete)
-        print(f"Deleted {len(ids_to_delete)} documents from source: {source_path}")
-    else:
-        print(f"No documents found with source: {source_path}")
 
 
     
