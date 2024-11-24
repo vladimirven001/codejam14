@@ -51,7 +51,7 @@ const FileExplorer = ({ open, onOpenChange }: FileExplorerProps) => {
         baseURL: "http://127.0.0.1:8000",
       });
 
-      const response = await axiosClient.get(`/files/${userId}`);
+      const response = await axiosClient.get(`/users/${userId}/files`);
       const data = response.data;
       console.log(data);
 

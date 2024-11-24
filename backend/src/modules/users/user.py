@@ -170,7 +170,7 @@ def update_user_by_email(email):
         db.session.rollback()
         return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
 
-@app.route('/files/<int:user_id>', methods=['GET'])
+@app.route('/users/<int:user_id>/files', methods=['GET'])
 def get_user_files(user_id):
     """
     Returns the folder containing files for the given user ID in a recursive structure.
