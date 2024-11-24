@@ -96,5 +96,8 @@ def main():
     results = retrieve(query)
     print(results)
 
+def process():
+    pass
+
 if __name__ == '__main__':
     main()
