@@ -263,6 +263,15 @@ const Chat = () => {
       {/* Left Sidebar */}
       <div className="w-64 border-r flex flex-col">
         <div className="p-4">
+          <Button
+              className="w-full flex items-center gap-2 mt-2"
+              onClick={() => setShowFileExplorer(true)}
+            >
+            <Plus className="h-4 w-4" />
+            Add Files
+          </Button>
+        </div>
+        <div className="p-4">
           <h3 className="text-lg font-bold">Conversations</h3>
           <Button
             variant="outline"

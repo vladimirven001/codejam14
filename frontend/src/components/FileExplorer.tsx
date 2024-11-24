@@ -445,7 +445,6 @@ const sendData = async () => {
           </ScrollArea>
         </div>
         <Button onClick={sendData} className="text-lg">Confirm</Button>
-        <Button onClick={printRootDirectory} className="text-lg">print</Button>
       </DialogContent>
     </Dialog>
   );
